@@ -2,7 +2,9 @@
 <head>
     <title>Harvest</title>
     <script type="text/javascript" src="import.js"> </script>
+    <script type="text/javascript" src="automata.js"> </script>
     <script type="text/javascript" src="setup.js"> </script>
+    <script type="text/javascript" src="input.js"> </script>
     <style type="text/css">
 /*canvas{
     scale: 0.5;
@@ -34,11 +36,11 @@ div#buttons{
     </canvas>
     </div>
     <div id="buttons">
-        Seeds: <span>0</span><br>
-        <button id="zoomout">Zoom Out</button><br>
-        <button id="zoomin">Zoom In</button><br>
-        <button id="paste">Plant</button><br>
-        <button id="wait">Grow</button><br>
+        Seeds: <span id="numseeds">0</span><br>
+        <button id="zoomout" onclick="zoomOut()">Zoom Out</button><br>
+        <button id="zoomin" onclick="zoomIn()">Zoom In</button><br>
+        <button id="paste" onclick="cursor.paste()">Plant</button><br>
+        <button id="wait" onclick="map.wait()">Grow</button><br>
         <button id="harvest">Harvest</button><br>
         <button id="expand">Buy Plot</button><br>
         <button id="copy" style="visibility:hidden">Save</button>
@@ -54,6 +56,9 @@ div#buttons{
 let ctx = gamecanvas.getContext("2d")
 ctx.fillRect(0,0,100,100)
 init()
+redraw()
+gamecanvas.addEventListener("click",click)
+
 </script>
 </body>
 </html>

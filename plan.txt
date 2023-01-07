@@ -17,6 +17,7 @@ planet (cube)
 solar system
  - planet building
  - should distance from star matter?
+    - plants on planet at distance n from star only grow when time%n == 0
  - moons?
 galaxy
 universe
@@ -42,6 +43,7 @@ perlin noise heightmap
 efficiency:
 copy and paste means most things should be identical
 (data structures should be immutable once 'copied')
+make new objects for everything that gets zoomed in on
 
 (terraforming planets is a must once you get multi-system)
 any plot

@@ -14,10 +14,14 @@
 */
 
 var pLocation;
-var pDepth;
 var time = 0;
 var map;
 var cursor;
+var seeds;
+var smallaut,bigaut;
+//progress:
+var minDepth;
+var tutorial=0;
 
 function init(reallyRandom){
     globalrng = mkrng(reallyRandom?(Math.random()*1000000000|0):105)
@@ -33,14 +37,17 @@ function init(reallyRandom){
         ,0//region
         ,0//farm
         ,0//plot
-        ,"0,0"//plant
+        ,55//plant
     ]
-    pDepth = 11;
-    map = new LAYERS[0](0,globalrng, null);
+    minDepth = 10;
+    map = new LAYERS[0](0,globalrng(), null);
     cursor = map
-    while(cursor.depth<pDepth){
+    while(cursor.depth < pLocation.length-1){
         cursor = cursor.getChildren()[pLocation[cursor.depth+1]]
     }
+    time = 0;
+    seeds=1n;
+    [bigaut,smallaut] = buildAutomata(globalrng)
 }
 
 var LAYERS;
@@ -61,7 +68,7 @@ class Map{
             this.children = this.mkChildren();
         return this.children;
     }
-    mkChildren(){ // this is the only function in which the rng should be used above a certain depth
+    mkChildren(){ // this is the only function in which the rng should be used
         return {0: this.randomChild()};
     }
     randomChild(){
@@ -70,7 +77,7 @@ class Map{
     wait(){
         if(this.waited===undefined){
             if(this.children===undefined) return this;
-            newch = {}
+            let newch = {}
             for(k in this.children){
                 newch[k] = this.children[k].wait()
             }
@@ -81,29 +88,96 @@ class Map{
 }
 LAYERS = new Array(12).fill(Map)
 class Plant extends Map{
-    constructor(depth,seed,parent){
-        super(depth,seed,parent);
+    constructor(depth, parent, children, seed){
+        super(depth, parent, children, seed);
         this.planted=false;
     }
     draw(ctx){
-        
+        let sz = ctx.canvas.width
+        ctx.fillStyle = "brown"
+        ctx.fillRect(0,0,sz,sz)
+        if(this.planted){
+            ctx.fillStyle = "green"
+            ctx.fillRect(sz/10,sz/10,sz*8/10,sz*8/10)
+        }
+    }
+    paste(){
+        this.planted=true
     }
 }
 PLOTSZ = 10
 class Plot extends Map{
-    constructor(depth,seed,parent){
-        super(depth,seed,parent);
+    constructor(depth, parent, children, seed){
+        super(depth, parent, children, seed);
         this.full=false;
+        this.terrain="soil";
     }
     mkChildren(){
         let ch = {}
         for(let x=0;x<PLOTSZ;x++){
             for(let y=0;y<PLOTSZ;y++){
-                ch[[x,y]] = this.randomChild();
+                ch[x+PLOTSZ*y] = this.randomChild();
             }
         }
         return ch;
     }
+    draw(ctx){
+        let sz = ctx.canvas.width
+        ctx.fillStyle = "brown"
+        ctx.fillRect(sz/100,sz/100,sz*98/100,sz*98/100)
+        ctx.save()
+        ctx.scale(1/PLOTSZ,1/PLOTSZ)
+        let ch = this.getChildren()
+        for(let x=0;x<PLOTSZ;x++){
+            for(let y=0;y<PLOTSZ;y++){
+                ch[x+PLOTSZ*y].draw(ctx)
+                ctx.translate(0,sz)
+            }
+            ctx.translate(sz,-PLOTSZ*sz)
+        }
+        ctx.restore()
+    }
+    drawZoomed(t, ctx){
+        this.draw(ctx)
+    }
+    wait(){
+        if(this.waited===undefined){
+            let state = new Array(PLOTSZ*PLOTSZ)
+            let ch = this.getChildren()
+            for(let k in ch)state[k]=ch[k].planted
+            result = step(state,this.terrain=="soil"?smallaut:bigaut,this.terrain=="soil"?1:2)
+            if(this.children===undefined) return this;
+            let newch = {}
+            for(k in this.children){
+                newch[k] = this.children[k].wait()
+            }
+            this.waited = new LAYERS[this.depth](this.depth, this.parent, newch) // parent probably gets overwritten
+        }
+        return this.waited
+    }
+}
+FARMSZ = 10
+class Farm extends Map{
+    constructor(depth, parent, children, seed){
+        super(depth, parent, children, seed);
+        this.full=false;
+        this.waterdistance = 1;
+    }
+    mkChildren(){
+        let ch = {}
+        for(let x=0;x<FARMSZ;x++){
+            for(let y=0;y<FARMSZ;y++){
+                ch[x+FARMSZ*y] = this.randomChild();
+            }
+        }
+        return ch;
+    }
+    draw(ctx){
+        sz = ctx.canvas.width
+        ctx.fillStyle = "green"
+        ctx.fillRect(sz/10,sz/10,sz*8/10,sz*8/10)
+    }
 }
 LAYERS[11] = Plant
 LAYERS[10] = Plot
+LAYERS[9] = Farm

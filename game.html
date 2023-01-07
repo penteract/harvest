@@ -2,21 +2,58 @@
 <head>
     <title>Harvest</title>
     <script type="text/javascript" src="import.js"> </script>
+    <script type="text/javascript" src="setup.js"> </script>
     <style type="text/css">
-        canvas{
-            scale: 0.5;
-        }
+/*canvas{
+    scale: 0.5;
+}*/
+#sparecanvas{
+    display: none;
+}
+@media(min-width:1080px){
+div#main{
+  /*height: 1000px;*/
+  writing-mode: vertical-lr;
+}
+}
+div#buttons{
+    writing-mode: initial;
+}
+#canvas{
+    grid-column: 1;
+}
+#buttons{
+    grid-column: 2;
+}
     </style>
 </head>
 <body>
-<canvas id="gamecanvas" width="1000" height="1000">
-</canvas>
-<canvas id="fractalcanvas" width="1000" height="1000">
+<div id="main">
+    <div id="canvas">
+        <canvas id="gamecanvas" width="1000" height="1000">
+    </canvas>
+    </div>
+    <div id="buttons">
+        Seeds: <span>0</span><br>
+        <button id="zoomout">Zoom Out</button><br>
+        <button id="zoomin">Zoom In</button><br>
+        <button id="paste">Plant</button><br>
+        <button id="wait">Grow</button><br>
+        <button id="harvest">Harvest</button><br>
+        <button id="expand">Buy Plot</button><br>
+        <button id="copy" style="visibility:hidden">Save</button>
+
+    </div>
+</div>
+
+<canvas id="sparecanvas" width="100" height="100">
 </canvas>
 <script type="text/javascript">
 "use strict";
+
 let ctx = gamecanvas.getContext("2d")
 ctx.fillRect(0,0,100,100)
+init()
 </script>
 </body>
 </html>

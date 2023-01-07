@@ -39,7 +39,7 @@ function shuffle(l,rng){
 }
 
 // degree should be 1 or 2
-function step(state,automaton,degree){
+function astep(state,automaton,type){
     let [ls,cap] = automaton;
     res = new Array(PLOTSZ*PLOTSZ)
     for(let x=0;x<PLOTSZ;x++){
@@ -49,7 +49,7 @@ function step(state,automaton,degree){
                 continue;
             }
             nbs = []
-            if(degree==2){
+            if(type=="soil"){
                 for(let dx=-1;dx<2;dx++){
                     for(let dy=-1;dy<2;dy++)if (dx||dy){
                         let xx=x+dx

@@ -1,7 +1,12 @@
 "use strict";
 
 let animating = false
-function redraw(){
+function redraw(depth){
+    if(depth===undefined) depth=cursor.depth;
+    cursor = map
+    while(cursor.depth < depth){
+        cursor = cursor.getChildren()[pLocation[cursor.depth+1] ]
+    }
     zoomout.disabled = cursor.depth<=minDepth;
     zoomin.disabled = cursor.depth>=11;
     gamecanvas.width |=0;
@@ -11,8 +16,7 @@ function redraw(){
 
 
 function zoomOut(){
-    cursor = cursor.parent;
-    redraw()
+    redraw(cursor.depth-1)
 }
 function zoomIn(){
     //console.log(cursor,cursor.depth)
@@ -24,13 +28,12 @@ function zoomIn(){
         }
         let t = timestamp - start
         console.log(t)
-        if(t<1000){
-            cursor.drawZoomed(t/1000, ctx)
+        if(t<100){
+            cursor.drawZoomed(t/100, ctx)
             window.requestAnimationFrame(step)
         }
         else {
-            cursor = cursor.getChildren()[pLocation[cursor.depth+1]];
-            redraw()
+            redraw(cursor.depth+1)
         }
 
     }
@@ -45,4 +48,22 @@ function click(e){
         pLocation[cursor.depth+1] = loc
         zoomIn
     }
+}
+function paste(){
+    map = map.clone()
+    let c = map
+    while(c.depth+1 < cursor.depth){
+        c = c.getChildren()[pLocation[c.depth+1] ]
+    }
+    c.getChildren()
+    c.children[pLocation[c.depth+1]] = saves[c.depth+1]
+    //cursor = c.getChildren()[pLocation[c.depth+1] ]
+    redraw()
+}
+function wait(){
+    map = map.wait()
+    redraw()
+}
+function harvest(){
+    
 }

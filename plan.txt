@@ -55,3 +55,4 @@ plants are fractals
 smooth zooming
 rocky terrain should look less green even when plants are there (despite the fact it will be optimal to plant things more densely)
 things not yet purchased should be greyed out?
+

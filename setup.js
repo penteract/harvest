@@ -1,4 +1,4 @@
-
+"use strict";
 
 /*
 11:plant
@@ -13,8 +13,6 @@
 2: multiverse
 */
 
-var clonecount = 0;
-
 var pLocation;
 var time;
 var map;
@@ -23,15 +21,36 @@ var seeds;
 var smallaut,bigaut;
 var rockList;
 var saves = new Array(11);
+var plantPic;
+var lockPic;
 //progress:
 var minDepth;
+var nextUnlockDepth;
+var nextUnlockLocation;
 var tutorial=0;
 
 function init(reallyRandom){
     let globalrng = mkrng(reallyRandom?(Math.random()*1000000000|0):105)
+    
+    drawPlant(sparectx,globalrng)
+    saveImg(sparecanvas,plantPic=new Image())
+    drawLock(sparectx)
+    saveImg(sparecanvas,lockPic=new Image())
+
+    ePlant = new Plant(11,false)
+    pPlant = new Plant(11,true)
+    saves[11] = pPlant
+    rPlot = new Plot(10,"rocky",undefined)
+    sPlot = new Plot(10,"soil",undefined)
+    farms = new Array(maxAltitude+1)
+    for(let i=0;i<=maxAltitude;i++){
+        farms[i] = new Farm(9, undefined, i)
+    }
+
+    //TODO: correct https://stackoverflow.com/a/15324845/1779797
     ; [bigaut,smallaut] = buildAutomata(globalrng)
     rockList = []
-    for(i=0;i<FARMSZ*FARMSZ;i++){
+    for(let i=0;i<FARMSZ*FARMSZ;i++){
         rockList.push(i)
     }
     shuffle(rockList,globalrng)
@@ -50,11 +69,17 @@ function init(reallyRandom){
         ,12//plant
     ]
     minDepth = 10;
+    nextUnlockDepth = 10;
+    nextUnlockLocation = 1;
     map = new LAYERS[0](0,undefined, globalrng());
     cursor = map
     while(cursor.depth < pLocation.length-1){
-        console.log(cursor)
+        //console.log(cursor)
+        let d = cursor.depth
         cursor = cursor.getChildren()[pLocation[cursor.depth+1]]
+        if (cursor.depth!=d+1){
+            console.log("error", cursor)
+        }
     }
     time = 0;
     seeds=1n;
@@ -62,6 +87,7 @@ function init(reallyRandom){
 
 var LAYERS;
 class Map{
+    layerSize=1
     constructor(depth, children, seed){
         this.depth=depth;
         if (children){
@@ -82,19 +108,19 @@ class Map{
         //console.log(this, this.depth, "asdfasdfsadf")
         return new LAYERS[this.depth+1](this.depth+1,  false, this.rng());
     }
-    wait(){
+    wait(...args){
         if(this.waited===undefined){
             if(this.children===undefined) return this;
             let newch = {}
             for(let k in this.children){
-                newch[k] = this.waitchild(this.children[k])
+                newch[k] = this.waitchild(this.children[k],...args)
             }
             this.waited = new LAYERS[this.depth](this.depth, newch) // parent probably gets overwritten
         }
         return this.waited
     }
-    waitchild(ch){
-        return ch.wait()
+    waitchild(ch,...args){
+        return ch.wait(...args)
     }
     // clone, assume parent will be changed, 'valid' indicates whether to invalidate caches
     clone(){
@@ -109,6 +135,71 @@ class Map{
         }
         return new LAYERS[this.depth](this.depth, newch)
     }
+    countPlants(){
+        if(this.plantcount===undefined){
+            this.plantcount = BigInt(0)
+            for(let k in this.children){
+                this.plantcount+=this.children[k].countPlants()
+            }
+        }
+        return this.plantcount
+    }
+    harvest(){
+        if (this.harvested===undefined){
+            if(this.countPlants()==0) this.harvested=this;
+            else{
+                let newch = {}
+                for(let k in this.getChildren()){
+                    newch[k] = this.children[k].harvest()
+                }
+                this.harvested = new LAYERS[this.depth](this.depth, newch)
+            }
+        }
+        return this.harvested
+    }
+    draw(ctx,parent,k){
+        let sz = ctx.canvas.width
+        ctx.save()
+        ctx.scale(1/this.gridsz,1/this.gridsz)
+        let ch = this.getChildren()
+        for(let x=0;x<this.gridsz;x++){
+            for(let y=0;y<this.gridsz;y++){
+                ch[x+this.gridsz*y].draw(ctx,this, x+this.gridsz*y)
+                ctx.translate(0,sz)
+            }
+            ctx.translate(sz,-this.gridsz*sz)
+        }
+        ctx.restore()
+        if(nextUnlockDepth == this.depth && k>=nextUnlockLocation){
+            ctx.drawImage(lockPic,0,0,sz,sz)
+        }
+    }
+    getLocation(x,y){
+        let [px,py] = [x*this.gridsz|0,y*this.gridsz|0];
+        return px+this.gridsz*py
+    }
+    drawZoomed(t, ctx){
+        let sz = ctx.canvas.width
+        let gridsz = this.gridsz
+        let scale = Math.pow(gridsz, t)
+        ctx.save()
+        //figure out point within target that shouldn't move
+        let n = pLocation[cursor.depth+1]
+        let x = n%gridsz
+        let y = (n/gridsz)|0
+        let mx = x*sz/(gridsz - 1)
+        let my = y*sz / (gridsz-1)
+        ctx.translate(mx,my) // move top left corner of target to top left
+        ctx.scale(scale,scale)
+        ctx.translate(-mx,-my)
+
+        // return
+        this.draw(ctx)
+        ctx.restore()
+    }
+    pasteover(other){
+        return this
+    }
 }
 LAYERS = new Array(12).fill(Map)
 class Plant extends Map{
@@ -117,21 +208,38 @@ class Plant extends Map{
         super(depth, null, null);
         this.planted=planted;
     }
-    draw(ctx){
+    draw(ctx,parent){
+        let terrain;
+        if (parent===undefined){
+            terrain = cursors[10].terrain
+        }
+        else{
+            terrain = parent.terrain;
+        }
         let sz = ctx.canvas.width
-        ctx.fillStyle = "brown"
-        ctx.fillRect(0,0,sz,sz)
+        ctx.fillStyle = terrain=="soil"?"brown":"grey"
+        ctx.fillRect(sz/100,sz/100,sz*98/100,sz*98/100)
+        //ctx.fillRect(0,0,sz,sz)
         if(this.planted){
+            ctx.drawImage(plantPic,0,0,sz,sz)
             ctx.fillStyle = "green"
-            ctx.fillRect(sz/10,sz/10,sz*8/10,sz*8/10)
+            //ctx.fillRect(sz/10,sz/10,sz*8/10,sz*8/10)
         }
     }
+    countPlants(){
+        return BigInt(this.planted)
+    }
+    harvest(){
+        if (this.planted) return ePlant;
+        return this
+    }
 }
-ePlant = new Plant(11,false)
-pPlant = new Plant(11,true)
-saves[11] = pPlant
-PLOTSZ = 5
+let ePlant
+let pPlant
+const PLOTSZ = 10
 class Plot extends Map{
+    layerSize=PLOTSZ*PLOTSZ
+    gridsz = PLOTSZ
     constructor(depth, terrain,state){
         let children = new Array(PLOTSZ*PLOTSZ)
         if(state===undefined){
@@ -153,30 +261,8 @@ class Plot extends Map{
     draw(ctx){
         let sz = ctx.canvas.width
         ctx.fillStyle = this.terrain=="soil"?"brown":"grey"
-        ctx.fillRect(sz/100,sz/100,sz*98/100,sz*98/100)
-        ctx.save()
-        ctx.scale(1/PLOTSZ,1/PLOTSZ)
-        let ch = this.getChildren()
-        for(let x=0;x<PLOTSZ;x++){
-            for(let y=0;y<PLOTSZ;y++){
-                ch[x+PLOTSZ*y].draw(ctx)
-                ctx.translate(0,sz)
-            }
-            ctx.translate(sz,-PLOTSZ*sz)
-        }
-        ctx.restore()
-    }
-    drawZoomed(t, ctx){
-        this.draw(ctx)
-    }
-    countPlants(){
-        if(this.children.plantcount===undefined){
-            this.children.plantcount = 0
-            for(let i=0;i<PLOTSZ*PLOTSZ;i++){
-                if(this.children[i])this.children.plantcount+=1
-            }
-        }
-        return this.children.plantcount
+        //ctx.fillRect(sz/100,sz/100,sz*98/100,sz*98/100)
+        super.draw(ctx)
     }
     getState(){
         let state = new Array(PLOTSZ*PLOTSZ)
@@ -200,23 +286,101 @@ class Plot extends Map{
         let state = this.getState()
         return new Plot(this.depth,this.terrain,state)
     }
+    pasteover(other){
+        if(this.pastes===undefined){
+            this.pastes={}
+            this.pastes[this.terrain] = this
+        }
+        if(this.pastes[other.terrain]===undefined){
+            this.pastes[other.terrain] = new Plot(this.depth, other.terrain, this.getState())
+            this.pastes[other.terrain].pastes = this.pastes
+            this.pastes[other.terrain].results = this.results
+        }
+        return this.pastes[other.terrain]
+    }
+    harvest(){
+        return this.terrain=="soil"?sPlot:rPlot
+    }
 }
-rPlot = new Plot(10,"rocky",undefined)
-sPlot = new Plot(10,"soil",undefined)
-FARMSZ = 10
+let rPlot
+let sPlot
+const FARMSZ = 10
+const ALTITUDE_FACTOR = 4
 class Farm extends Map{
-    constructor(depth, parent, children, seed){
-        super(depth, parent, children, seed);
-        this.altitude = 1;
-        //this.full=false;
-        this.waterdistance = 1;
-        this.purchased = false;
+    layerSize=FARMSZ*FARMSZ
+    gridsz = FARMSZ
+    constructor(depth, children, altitude){
+        super(depth, children, null);
+        this.altitude = altitude;
     }
     mkChildren(){
         let ch = {}
         for(let x=0;x<FARMSZ;x++){
             for(let y=0;y<FARMSZ;y++){
-                ch[x+FARMSZ*y] = rockList[x+FARMSZ*y]<this.altitude?rPlot:sPlot
+                ch[x+FARMSZ*y] = rockList[x+FARMSZ*y]<=(this.altitude*ALTITUDE_FACTOR)?rPlot:sPlot
+                // Plot(this.depth+1); // this.randomChild();
+            }
+        }
+        return ch;
+    }
+    pasteover(other){// TODO: Fix This
+        if(this.pastes===undefined){
+            this.pastes={}
+            for(let k=0; k<this.gridsz*this.gridsz; k++){
+                ch = this.getChildren()[k]
+                if (ch.terrain=="soil" && this.pastes["soil"]===undefined){
+                    this.pastes[ch.terrain] = ch
+                }
+                if (ch.terrain=="rocky" && this.pastes["rocky"]===undefined){
+                    this.pastes[ch.terrain] = ch
+                }
+            }
+        }
+        let numRocky = this.altitude*ALTITUDE_FACTOR+1
+        let numSoil = this.gridsz*this.gridsz - numRocky
+        if (seeds > BigInt(numSoil)*this.pastes["soil"].countPlants()
+                      + BigInt(numRocky)*this.pastes["rocky"].countPlants()){
+            if (this.pastes[other.altitude]===undefined){
+                let newCh = {}
+                for(let k in other.getChildren()){
+                    newCh[k] = [other.children[k].terrain]
+                }
+                this.pastes[other.altitude] = new Farm(this.depth, newCh, other.altitude)
+                this.pastes[other.altitude].pastes = this.pastes
+            }
+            return this.pastes[other.altitude];
+        }
+        let newCh = {}
+        for(let k in other.getChildren()){
+            let pst = this.pastes[other.children[k].terrain]
+            if(pst.countPlants()>numSeeds) break
+            seeds -= pst.countPlants()
+            newCh[k] = pst
+            let result = new Farm(this.depth, newCh, other.altitude)
+            result.pastes = this.pastes
+            return result
+        }
+
+    }
+    harvest(){
+        return farms[this.altitude]
+    }
+}
+const REGSZ = 20
+class Region extends Map{
+    layerSize=REGSZ*REGSZ
+    gridsz=REGSZ
+    constructor(depth, children, seed){
+        super(depth, children, seed);
+    }
+    mkChildren(){
+        let ch = {}
+        let noise = perlin(this.rng,5)
+        for(let x=0;x<this.gridsz;x++){
+            for(let y=0;y<this.gridsz;y++){
+                let alt = ((noise(x,y)+1)*8) |0 // 0..15 hopefully
+                ch[x+this.gridsz*y] = farms[alt]
+                //rockList[x+this.gridsz*y]<this.altitude?rPlot:sPlot
                 // Plot(this.depth+1); // this.randomChild();
             }
         }
@@ -228,12 +392,15 @@ class Farm extends Map{
         ctx.fillRect(sz/10,sz/10,sz*8/10,sz*8/10)
     }
     waitchild(ch){
-        return ch.wait(this.waterdistance)
+        return ch.wait(1) // TODO: implement water distance properly
     }
 }
 LAYERS[11] = Plant
 LAYERS[10] = Plot
 LAYERS[9] = Farm
+LAYERS[8] = Region
+const maxAltitude = 16
+let farms; // empty farms at each altitude
 
 
 /*

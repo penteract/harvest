@@ -115,14 +115,14 @@ class Map{
             for(let k in this.children){
                 newch[k] = this.waitchild(this.children[k],...args)
             }
-            this.waited = new LAYERS[this.depth](this.depth, newch) // parent probably gets overwritten
+            this.waited = this.cloneFromChildren(newch) // parent probably gets overwritten
         }
         return this.waited
     }
     waitchild(ch,...args){
         return ch.wait(...args)
     }
-    // clone, assume parent will be changed, 'valid' indicates whether to invalidate caches
+    // clone, assume parent will be changed
     clone(){
         let newch = {}
         for(let k in this.getChildren()){
@@ -133,6 +133,9 @@ class Map{
                 newch[k] = this.children[k]
             }
         }
+        return this.cloneFromChildren(newch)
+    }
+    cloneFromChildren(newch){
         return new LAYERS[this.depth](this.depth, newch)
     }
     countPlants(){
@@ -171,6 +174,7 @@ class Map{
         }
         ctx.restore()
         if(nextUnlockDepth == this.depth && k>=nextUnlockLocation){
+            console.log("lock")
             ctx.drawImage(lockPic,0,0,sz,sz)
         }
     }
@@ -258,12 +262,13 @@ class Plot extends Map{
             this.children = new Array(PLOTSZ*PLOTSZ).fill(ePlant)
         }
     }
+    /*
     draw(ctx){
         let sz = ctx.canvas.width
         ctx.fillStyle = this.terrain=="soil"?"brown":"grey"
         //ctx.fillRect(sz/100,sz/100,sz*98/100,sz*98/100)
         super.draw(ctx)
-    }
+    }*/
     getState(){
         let state = new Array(PLOTSZ*PLOTSZ)
         for(let k in this.children)state[k]=this.children[k].planted
@@ -310,6 +315,7 @@ class Farm extends Map{
     layerSize=FARMSZ*FARMSZ
     gridsz = FARMSZ
     constructor(depth, children, altitude){
+        if (altitude===undefined) throw "bad creation of farm";
         super(depth, children, null);
         this.altitude = altitude;
     }
@@ -360,9 +366,12 @@ class Farm extends Map{
             result.pastes = this.pastes
             return result
         }
-
+    }
+    cloneFromChildren(newch){
+        return new LAYERS[this.depth](this.depth, newch, this.altitude)
     }
     harvest(){
+        console.log(this.altitude)
         return farms[this.altitude]
     }
 }

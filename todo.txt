@@ -1,6 +1,5 @@
 growing animation?
 
-fix planting cost
 
 region construction
 terraforming
@@ -8,6 +7,7 @@ terraforming
 buying regions
 - cube graphics
 
+properly disallow zooming into oceans
 
 nicer graphics (stone, soil and water)
 

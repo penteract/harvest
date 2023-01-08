@@ -12,8 +12,8 @@ var hints = [
     "Record a whole plot to speed up planting next time",
     "Save up to buy another plot",
     "Save up to buy another plot",
-    "Plants don't grow as well in rocky soil ",
-    "Farms that are nearer to water have an advantage"
+    "Plants don't grow as quickly in rocky soil ",
+    "Being nearer to water helps plants grow"
 ]
 
 const costFactor = 0.3;
@@ -48,7 +48,11 @@ function redraw(depth){
     harvestbut.disabled = cursor.countPlants()==0n
     let numUnlock = (seeds / BigInt(expandCosts[nextUnlockDepth]))
     expandbut.disabled = numUnlock<1
-    expandbut.innerHTML = expandNames[nextUnlockDepth][numUnlock>1?1:0]+" ("+numUnlock*BigInt(expandCosts[nextUnlockDepth])+")"
+    let maxUnlock = cursors[nextUnlockDepth-1].layerSize - nextUnlockLocation;
+    if (numUnlock>maxUnlock) numUnlock=BigInt(maxUnlock)
+    expandbut.innerHTML = expandNames[nextUnlockDepth][numUnlock>1?1:0]
+        +" ("+(numUnlock||1n)*BigInt(expandCosts[nextUnlockDepth])+")"
+    
     numseeds.innerHTML = seeds+""
     hint.innerHTML = "Hint: "+hints[tutorial]
     gamecanvas.width |= 0; // TODO: put this inside the call to draw, after preparation
@@ -158,7 +162,6 @@ function paste(){
         zoomoutbut.style.visibility="visible"
     }
     harvest(true)
-    seeds -= saves[cursor.depth].countPlants(cursor)
     map = map.clone()
     let c = map
     while(c.depth+1 < cursor.depth){
@@ -226,10 +229,10 @@ async function expand(){
     while(cursor.depth>minDepth){
         await zoomOut()
     }
-    if (tutorial==8 && minDepth<9){
+    if (tutorial==8 && minDepth<10){
         tutorial+=1
     }
-    if (tutorial==9 && minDepth<8){
+    if (tutorial==9 && minDepth<9){
         tutorial+=1
     }
     redraw(minDepth)

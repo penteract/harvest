@@ -145,14 +145,15 @@ class Map{
     cloneFromChildren(newch){
         return new LAYERS[this.depth](this.depth, newch)
     }
-    countPlants(){
+    countPlants(other){
         if(this.plantcount===undefined){
             this.plantcount = BigInt(0)
             for(let k in this.children){
                 this.plantcount+=this.children[k].countPlants()
             }
         }
-        return this.plantcount
+        if(other===undefined) return this.plantcount;
+        else return this.plantcount-other.countPlants();
     }
     harvest(){
         if (this.harvested===undefined){
@@ -224,6 +225,7 @@ class Map{
         ctx.restore()
     }
     pasteover(other){
+        seeds-=this.countPlants()
         return this
     }
 }
@@ -323,6 +325,7 @@ class Plot extends Map{
             this.pastes[other.terrain].pastes = this.pastes
             this.pastes[other.terrain].results = this.results
         }
+        seeds-=this.pastes[other.terrain].countPlants()
         return this.pastes[other.terrain]
     }
     harvest(){
@@ -351,7 +354,7 @@ class Farm extends Map{
         }
         return ch;
     }
-    pasteover(other){// TODO: Fix This
+    preparePastes(){
         if(this.pastes===undefined){
             this.pastes={}
             for(let k=0; k<this.layerSize; k++){
@@ -364,6 +367,30 @@ class Farm extends Map{
                 }
             }
         }
+    }
+    countPlants(other){
+        if(other===undefined) return super.countPlants();
+        this.preparePastes()
+        let numRocky = this.altitude*ALTITUDE_FACTOR+1
+        let numSoil = this.gridsz*this.gridsz - numRocky
+        if (seeds + other.countPlants() > BigInt(numSoil)*this.pastes["soil"].countPlants()
+                      + BigInt(numRocky)*this.pastes["rocky"].countPlants()
+            && nextUnlockDepth<=this.depth){
+            return BigInt(numSoil)*this.pastes["soil"].countPlants()
+                       + BigInt(numRocky)*this.pastes["rocky"].countPlants()
+                       - other.countPlants()
+        }
+        let ns = seeds + other.countPlants()
+        for(let k=0; k<this.layerSize; k++){
+            let pst = this.pastes[other.getChildren()[k].terrain]
+            if(pst.countPlants()<=ns && k<nextUnlockLocation){
+                ns -= pst.countPlants()
+            }
+        }
+        return (seeds - ns)
+    }
+    pasteover(other){// TODO: Fix This
+        this.preparePastes()
         let numRocky = this.altitude*ALTITUDE_FACTOR+1
         let numSoil = this.gridsz*this.gridsz - numRocky
         if (seeds > BigInt(numSoil)*this.pastes["soil"].countPlants()
@@ -377,12 +404,13 @@ class Farm extends Map{
                 this.pastes[other.altitude] = new Farm(this.depth, newCh, other.altitude)
                 this.pastes[other.altitude].pastes = this.pastes
             }
+            seeds-=this.pastes[other.altitude].countPlants();
             return this.pastes[other.altitude];
         }
         let newCh = {}
         for(let k=0; k<this.layerSize; k++){
             let pst = this.pastes[other.getChildren()[k].terrain]
-            if(pst.countPlants()<seeds && k<nextUnlockLocation){
+            if(pst.countPlants()<=seeds && k<nextUnlockLocation){
                 seeds -= pst.countPlants()
                 newCh[k] = pst
             }

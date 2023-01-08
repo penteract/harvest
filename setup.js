@@ -47,8 +47,10 @@ function init(reallyRandom){
     rPlot = new Plot(10,"rocky",undefined)
     sPlot = new Plot(10,"soil",undefined)
     farms = new Array(maxAltitude+1)
+    waters = new Array(maxAltitude+1)
     for(let i=0;i<=maxAltitude;i++){
         farms[i] = new Farm(9, undefined, i)
+        waters[i] = new Water(9, i)
     }
 
     //TODO: correct https://stackoverflow.com/a/15324845/1779797
@@ -113,6 +115,7 @@ class Map{
         return new LAYERS[this.depth+1](this.depth+1,  false, this.rng());
     }
     wait(...args){
+        if(this.countPlants()==0)return this
         if(this.waited===undefined){
             if(this.children===undefined) return this;
             let newch = {}
@@ -159,7 +162,7 @@ class Map{
                 for(let k in this.getChildren()){
                     newch[k] = this.children[k].harvest()
                 }
-                this.harvested = new LAYERS[this.depth](this.depth, newch)
+                this.harvested = this.cloneFromChildren(newch)
             }
         }
         return this.harvested
@@ -177,7 +180,7 @@ class Map{
             }
             ctx.drawImage(this.img,0,0,sz,sz)
         }
-        if(nextUnlockDepth == this.depth && k>=nextUnlockLocation){
+        if(nextUnlockDepth == this.depth && k>=nextUnlockLocation && !this.isWater){
             ctx.drawImage(lockPic,0,0,sz,sz)
         }
     }
@@ -398,16 +401,41 @@ class Farm extends Map{
         return farms[this.altitude]
     }
 }
-const REGSZ = 20
+const REGSZ = 12
+const NOISESCALE = 4
+class Water extends Map{
+    constructor(depth,altitude){
+        super(depth,null,null)
+        this.altitude=altitude
+        this.isWater=true
+    }
+    async drawToSave(ctx){
+        let sz = ctx.canvas.width;
+        ctx.fillStyle = "blue"
+        ctx.fillRect(0,0,sz,sz)
+    }
+    mkChildren(){
+        return {}
+    }
+    cloneFromChildren(newch){
+        return waters[this.altitude]
+    }
+    isZoomable(){
+        return false
+    }
+}
 class Region extends Map{
     layerSize=REGSZ*REGSZ
     gridsz=REGSZ
     constructor(depth, children, seed){
         super(depth, children, seed);
+        if(children){
+            this.setWater(this.children)
+        }
     }
     mkChildren(){
+        let noise = perlin(this.rng,(REGSZ/NOISESCALE)|0)
         let ch = {}
-        let noise = perlin(this.rng,5)
         for(let x=0;x<this.gridsz;x++){
             for(let y=0;y<this.gridsz;y++){
                 let alt = ((noise(x,y)+1)*8) |0 // 0..15 hopefully
@@ -416,15 +444,95 @@ class Region extends Map{
                 // Plot(this.depth+1); // this.randomChild();
             }
         }
+        this.setWater(ch, nextUnlockDepth==10)
         return ch;
+    }
+    setWater(ch,cheat){
+        //console.log("setting")
+        let ks = new Array(this.layerSize)
+        for(let i=0;i<this.layerSize;i++){
+            ks[i] = [ch[i].altitude, i];
+        }
+        ks.sort((a,b)=>(a[0]-b[0])*this.layerSize+(a[1]-b[1]) )
+        if(cheat){
+            let wetalt = ks[REGSZ-1][0]
+            console.log(wetalt)
+            for(let alt_k of ks){
+                let above = (alt_k[1]+this.gridsz*(this.gridsz-1))%this.layerSize
+                if(ch[above].altitude>wetalt){
+                    let newch = {}
+                    for(let x=0;x<this.gridsz;x++){
+                        for(let y=0;y<this.gridsz;y++){
+                            let k = x+this.gridsz*y
+                            newch[k] = ch[(k+above)%this.layerSize]
+                        }
+                    }
+                    console.log(ch,newch)
+                    for(let k in newch){
+                        ch[k] = newch[k]
+                    }
+                    this.setWater(ch)
+                    return;
+                }
+            }
+        }
+        let seen = {}
+        let wdists = new Array(this.layerSize)
+        let nseen = 0
+        for(let i=0;i<REGSZ;i++){
+            ch[ks[i][1]] = waters[ks[i][0]]
+            seen[ks[i][1]] = true
+            nseen+=1
+        }
+        for(let i=REGSZ;i<this.layerSize;i++){
+            if(ch[ks[i][1]].isWater) ch[ks[i][1]] = farms[ks[i][0]]
+        }
+        let wdist = 0;
+        let lastgen = seen
+        while(nseen<this.layerSize){
+            let nextgen={}
+            wdist+=1
+            for (let k in lastgen){
+                let [x,y] = [k%this.gridsz, (k/this.gridsz)|0]
+                for (let [dx,dy] of [[1,0],[0,1],[-1,0],[0,-1]]){
+                    let xx=x+dx
+                    let yy= y+dy
+                    if (Math.min(xx,yy)>=0 && Math.max(xx,yy)<this.gridsz){
+                        let nx = xx+this.gridsz*yy
+                        if(!seen[nx]){
+                            seen[nx]=true
+                            nextgen[nx]=true
+                            nseen+=1
+                            wdists[nx]=wdist
+                        }
+                    }
+                }
+            }
+            lastgen=nextgen
+        }
+        //console.log(wdists)
+        this.wdists=wdists
+
     }
     /*draw(ctx){
         sz = ctx.canvas.width
         ctx.fillStyle = "green"
         ctx.fillRect(sz/10,sz/10,sz*8/10,sz*8/10)
     }*/
-    waitchild(ch){
-        return ch.wait(1) // TODO: implement water distance properly
+    wait(){
+        if(this.countPlants()==0)return this
+        if(this.waited===undefined){
+            if(this.children===undefined) return this;
+            let newch = {}
+            for(let k in this.children){
+                newch[k] = this.waitchild(this.children[k],this.wdists[k])
+            }
+            this.waited = this.cloneFromChildren(newch) // parent probably gets overwritten
+        }
+        return this.waited
+    }
+    waitchild(ch,wdist){
+        return ch.wait(wdist)
     }
 }
 LAYERS[11] = Plant
@@ -433,7 +541,7 @@ LAYERS[9] = Farm
 LAYERS[8] = Region
 const maxAltitude = 16
 let farms; // empty farms at each altitude
-
+let waters;
 
 /*
 Not worth the effort:

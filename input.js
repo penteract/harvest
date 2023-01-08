@@ -12,7 +12,8 @@ var hints = [
     "Record a whole plot to speed up planting next time",
     "Save up to buy another plot",
     "Save up to buy another plot",
-    "Plants don't grow as well in rocky soil "
+    "Plants don't grow as well in rocky soil ",
+    "Farms that are nearer to water have an advantage"
 ]
 
 const costFactor = 0.3;
@@ -22,12 +23,12 @@ expandCosts[9] = expandCosts[10]*FARMSZ*FARMSZ;
 expandCosts[8] = expandCosts[9]*REGSZ*REGSZ;
 expandCosts[7] = expandCosts[8]*6;
 const expandNames = {}
-expandNames[10] = "Buy Plot"
-expandNames[9] = "Buy Farm"
-expandNames[8] = "Go over the edge of the world"
-expandNames[7] = "Build a rocket"
+expandNames[10] = ["Buy Plot","Buy Plots"]
+expandNames[9] = ["Buy Farm","Buy Farms"]
+expandNames[8] = ["Go over the edge of the world","Go over the edges of the world"]
+expandNames[7] = ["Build a rocket", "Build rockets"]
 
-function redraw(depth){
+function fixcursor(depth){
     if(depth===undefined) depth=cursor.depth;
     cursor = map
     while(cursor.depth < depth){
@@ -35,18 +36,23 @@ function redraw(depth){
         cursor = cursor.getChildren()[pLocation[cursor.depth+1] ]
     }
     cursors[cursor.depth] = cursor;
+}
+
+function redraw(depth){
+    fixcursor(depth)
     copybut.disabled = cursor.depth>=11;
     zoomoutbut.disabled = cursor.depth<=minDepth;
     zoominbut.disabled = cursor.depth>=11;
     pastebut.disabled = saves[cursor.depth]===undefined || seeds<saves[cursor.depth].countPlants(cursor)
     pastebut.innerHTML = saves[cursor.depth]===undefined?"Plant":"Plant ("+saves[cursor.depth].countPlants(cursor)+")"
     harvestbut.disabled = cursor.countPlants()==0n
-    expandbut.disabled = seeds < expandCosts[nextUnlockDepth]
-    expandbut.innerHTML = expandNames[nextUnlockDepth]+" ("+expandCosts[nextUnlockDepth]+")"
-    gamecanvas.width |= 0;
+    let numUnlock = (seeds / BigInt(expandCosts[nextUnlockDepth]))
+    expandbut.disabled = numUnlock<1
+    expandbut.innerHTML = expandNames[nextUnlockDepth][numUnlock>1?1:0]+" ("+numUnlock*BigInt(expandCosts[nextUnlockDepth])+")"
     numseeds.innerHTML = seeds+""
     hint.innerHTML = "Hint: "+hints[tutorial]
-    cursor.draw(ctx);
+    gamecanvas.width |= 0; // TODO: put this inside the call to draw, after preparation
+    return cursor.draw(ctx);
 }
 
 function skipTutorial(){
@@ -58,6 +64,8 @@ function skipTutorial(){
     zoominbut.style.visibility="visible"
     expandbut.style.visibility="visible"
     seeds+=1000n
+    minDepth-=3
+    nextUnlockDepth-=3
 
 }
 
@@ -74,24 +82,26 @@ function zoomOut(){
         copybut.style.visibility="visible"
     }
     animating=true
-    let start = undefined
-    let step = function(timestamp){
-        if (start === undefined) {
-            start = timestamp;
+    return new Promise(function(resolve,reject){
+        let start = undefined
+        let step = function(timestamp){
+            if (start === undefined) {
+                start = timestamp;
+            }
+            let t = timestamp - start
+            if(t<atime){
+                gamecanvas.width |= 0;
+                cursor.drawZoomed(1-t/atime, ctx).then(()=>
+                    window.requestAnimationFrame(step))
+            }
+            else {
+                animating=false
+                redraw().then(()=>resolve())
+                //resolve()
+            }
         }
-        let t = timestamp - start
-        if(t<atime){
-            gamecanvas.width |= 0;
-            cursor.drawZoomed(1-t/atime, ctx)
-            window.requestAnimationFrame(step)
-        }
-        else {
-            animating=false
-            redraw()
-        }
-    }
-    window.requestAnimationFrame(step)
-    redraw(cursor.depth-1)
+        redraw(cursor.depth-1).then(()=>window.requestAnimationFrame(step))
+    })
 }
 function zoomIn(){
     if(animating) return;
@@ -147,7 +157,7 @@ function paste(){
         tutorial+=1
         zoomoutbut.style.visibility="visible"
     }
-    harvest()
+    harvest(true)
     seeds -= saves[cursor.depth].countPlants(cursor)
     map = map.clone()
     let c = map
@@ -173,7 +183,7 @@ function wait(){
     }
     redraw()
 }
-function harvest(){
+function harvest(dontdraw){
     if(animating) return;
     if (tutorial==3){
         tutorial+=1
@@ -187,24 +197,40 @@ function harvest(){
     c.getChildren()
     seeds += cursor.countPlants()
     c.children[pLocation[c.depth+1]] = cursor.harvest()
-    redraw()
+    if(dontdraw){
+        cursor = c.children[pLocation[c.depth+1]]
+    }
+    else{
+        redraw()
+    }
 }
-function expand(){
+async function expand(){
     if(animating) return;
     if(seeds<BigInt(expandCosts[nextUnlockDepth])) return;
-    seeds -= BigInt(expandCosts[nextUnlockDepth])
-    if (tutorial==8){
-        tutorial+=1
-    }
+    
     let c = map
-    while(c.depth+1 < cursor.depth){
+    while(c.depth+1 < nextUnlockDepth){
         c = c.getChildren()[pLocation[c.depth+1] ]
     }
     if(nextUnlockDepth==minDepth)minDepth-=1
-    nextUnlockLocation+=1
+    while(seeds>expandCosts[nextUnlockDepth] && nextUnlockLocation<c.layerSize){
+        if(!c.getChildren()[nextUnlockLocation].isWater ){
+            seeds -= BigInt(expandCosts[nextUnlockDepth])
+        }
+        nextUnlockLocation+=1
+    }
     if (nextUnlockLocation >= cursors[nextUnlockDepth-1].layerSize){
         nextUnlockLocation = 1
         nextUnlockDepth-=1
+    }
+    while(cursor.depth>minDepth){
+        await zoomOut()
+    }
+    if (tutorial==8 && minDepth<9){
+        tutorial+=1
+    }
+    if (tutorial==9 && minDepth<8){
+        tutorial+=1
     }
     redraw(minDepth)
 }

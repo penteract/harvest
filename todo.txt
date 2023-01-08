@@ -1,10 +1,6 @@
 growing animation?
 
-buying plots
-- copy/paste farms
-- don't plant into locked farms
-
-buying farms
+fix planting cost
 
 region construction
 terraforming
@@ -12,4 +8,7 @@ terraforming
 buying regions
 - cube graphics
 
-efficient drawing
+
+nicer graphics (stone, soil and water)
+
+restart button

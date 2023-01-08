@@ -13,6 +13,8 @@ function mkrng(a) {
 
 function drawPlant(ctx, rng){
   let sz = (ctx.canvas.width|=0)
+  //let sz = (ctx.canvas.width)
+
   let border = sz*0.01
   ctx.fillStyle="green"
   let rns = []
@@ -29,28 +31,29 @@ function drawPlant(ctx, rng){
     }
     else{
       ctx.save()
-      ctx.translate(sz/2,sz*0.59)
+      ctx.translate(sz/2,sz*0.69)
       ctx.scale(0.6,0.6)
       ctx.rotate(0.5+rns[3]/2)
       ctx.translate(-sz/2,-sz)
       recurse(depth-1,hr+3)
       ctx.restore()
       ctx.save()
-      ctx.translate(sz/2,sz*0.55)
+      ctx.translate(sz/2,sz*0.85)
       ctx.scale(0.5+rns[1]/10,0.5+rns[0]/10)
       ctx.rotate(-rns[4]-0.4)
       ctx.translate(-sz/2,-sz)
       recurse(depth-1,hr+3+rns[2]/10)
       ctx.restore()
       ctx.save()
-      ctx.translate(sz/2,sz*0.85)
-      ctx.scale(0.5,0.8)
+      ctx.translate(sz/2,sz*0.7)
+      ctx.scale(0.68,0.69)
+      ctx.rotate(0.1*(0.5-rns[8]))
       ctx.translate(-sz/2,-sz)
-      recurse(depth-1,hr+1)
+      recurse(depth-0.6,hr+1)
       ctx.restore()
     }
   }
-  recurse(8, 0)
+  recurse(7, 0)
 }
 function drawLock(ctx){
   let sz = (ctx.canvas.width|=0)
@@ -65,14 +68,18 @@ function drawLock(ctx){
   ctx.restore()
 }
 
-function saveImg(canvas, img){
-  canvas.toBlob(x=>{
-      let u = URL.createObjectURL(x)
-      img.onload = function(){
-          URL.revokeObjectURL(u)
-      }
-      img.src=u
-  });
+async function saveImg(canvas){
+  return new Promise(function(resolve,reject){
+    let img = new Image()
+    canvas.toBlob(x=>{
+        let u = URL.createObjectURL(x)
+        img.onload = function(){
+            URL.revokeObjectURL(u)
+            resolve(img)
+        }
+        img.src=u
+    });
+  })
 }
 
 function interpolate( a0, a1, w) {

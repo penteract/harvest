@@ -2,6 +2,7 @@ growing animation?
 
 buying plots
 - copy/paste farms
+- don't plant into locked farms
 
 buying farms
 
@@ -10,3 +11,5 @@ terraforming
 
 buying regions
 - cube graphics
+
+efficient drawing

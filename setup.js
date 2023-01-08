@@ -33,9 +33,13 @@ function init(reallyRandom){
     let globalrng = mkrng(reallyRandom?(Math.random()*1000000000|0):105)
     
     drawPlant(sparectx,globalrng)
-    saveImg(sparecanvas,plantPic=new Image())
-    drawLock(sparectx)
-    saveImg(sparecanvas,lockPic=new Image())
+    saveImg(sparecanvas).then(x=>{
+        plantPic=x;
+        drawLock(sparectx)
+        saveImg(sparecanvas).then(
+        x => lockPic = x
+        )
+    })
 
     ePlant = new Plant(11,false)
     pPlant = new Plant(11,true)
@@ -160,29 +164,44 @@ class Map{
         }
         return this.harvested
     }
-    draw(ctx,parent,k){
+    async draw(ctx,parent,k){
+        let sz = ctx.canvas.width
+        if(parent===undefined){
+            await this.drawToSave(ctx,parent,k)
+        }
+        else{
+            if(this.img===undefined){
+                smallctxs[this.depth].canvas.width|=0
+                await this.drawToSave(smallctxs[this.depth],parent,k)
+                this.img = await saveImg(smallctxs[this.depth].canvas)
+            }
+            ctx.drawImage(this.img,0,0,sz,sz)
+        }
+        if(nextUnlockDepth == this.depth && k>=nextUnlockLocation){
+            ctx.drawImage(lockPic,0,0,sz,sz)
+        }
+    }
+    async drawToSave(ctx,parent,k){
         let sz = ctx.canvas.width
         ctx.save()
         ctx.scale(1/this.gridsz,1/this.gridsz)
         let ch = this.getChildren()
         for(let x=0;x<this.gridsz;x++){
             for(let y=0;y<this.gridsz;y++){
-                ch[x+this.gridsz*y].draw(ctx,this, x+this.gridsz*y)
+                await ch[x+this.gridsz*y].draw(ctx,this, x+this.gridsz*y)
                 ctx.translate(0,sz)
             }
             ctx.translate(sz,-this.gridsz*sz)
         }
         ctx.restore()
-        if(nextUnlockDepth == this.depth && k>=nextUnlockLocation){
-            console.log("lock")
-            ctx.drawImage(lockPic,0,0,sz,sz)
-        }
     }
     getLocation(x,y){
         let [px,py] = [x*this.gridsz|0,y*this.gridsz|0];
-        return px+this.gridsz*py
+        let pos = px+this.gridsz*py
+        if(nextUnlockDepth==this.depth+1 && nextUnlockLocation<=pos) return undefined;
+        return pos
     }
-    drawZoomed(t, ctx){
+    async drawZoomed(t, ctx){
         let sz = ctx.canvas.width
         let gridsz = this.gridsz
         let scale = Math.pow(gridsz, t)
@@ -198,7 +217,7 @@ class Map{
         ctx.translate(-mx,-my)
 
         // return
-        this.draw(ctx)
+        await this.draw(ctx)
         ctx.restore()
     }
     pasteover(other){
@@ -212,7 +231,7 @@ class Plant extends Map{
         super(depth, null, null);
         this.planted=planted;
     }
-    draw(ctx,parent){
+    async draw(ctx,parent){
         let terrain;
         if (parent===undefined){
             terrain = cursors[10].terrain
@@ -332,8 +351,8 @@ class Farm extends Map{
     pasteover(other){// TODO: Fix This
         if(this.pastes===undefined){
             this.pastes={}
-            for(let k=0; k<this.gridsz*this.gridsz; k++){
-                ch = this.getChildren()[k]
+            for(let k=0; k<this.layerSize; k++){
+                let ch = this.getChildren()[k]
                 if (ch.terrain=="soil" && this.pastes["soil"]===undefined){
                     this.pastes[ch.terrain] = ch
                 }
@@ -345,11 +364,12 @@ class Farm extends Map{
         let numRocky = this.altitude*ALTITUDE_FACTOR+1
         let numSoil = this.gridsz*this.gridsz - numRocky
         if (seeds > BigInt(numSoil)*this.pastes["soil"].countPlants()
-                      + BigInt(numRocky)*this.pastes["rocky"].countPlants()){
+                      + BigInt(numRocky)*this.pastes["rocky"].countPlants()
+            && nextUnlockDepth<=this.depth){
             if (this.pastes[other.altitude]===undefined){
                 let newCh = {}
                 for(let k in other.getChildren()){
-                    newCh[k] = [other.children[k].terrain]
+                    newCh[k] = this.pastes[other.children[k].terrain]
                 }
                 this.pastes[other.altitude] = new Farm(this.depth, newCh, other.altitude)
                 this.pastes[other.altitude].pastes = this.pastes
@@ -357,21 +377,24 @@ class Farm extends Map{
             return this.pastes[other.altitude];
         }
         let newCh = {}
-        for(let k in other.getChildren()){
-            let pst = this.pastes[other.children[k].terrain]
-            if(pst.countPlants()>numSeeds) break
-            seeds -= pst.countPlants()
-            newCh[k] = pst
-            let result = new Farm(this.depth, newCh, other.altitude)
-            result.pastes = this.pastes
-            return result
+        for(let k=0; k<this.layerSize; k++){
+            let pst = this.pastes[other.getChildren()[k].terrain]
+            if(pst.countPlants()<seeds && k<nextUnlockLocation){
+                seeds -= pst.countPlants()
+                newCh[k] = pst
+            }
+            else{
+                newCh[k] = other.getChildren()[k]
+            }
         }
+        let result = new Farm(this.depth, newCh, other.altitude)
+        result.pastes = this.pastes
+        return result
     }
     cloneFromChildren(newch){
         return new LAYERS[this.depth](this.depth, newch, this.altitude)
     }
     harvest(){
-        console.log(this.altitude)
         return farms[this.altitude]
     }
 }
@@ -395,11 +418,11 @@ class Region extends Map{
         }
         return ch;
     }
-    draw(ctx){
+    /*draw(ctx){
         sz = ctx.canvas.width
         ctx.fillStyle = "green"
         ctx.fillRect(sz/10,sz/10,sz*8/10,sz*8/10)
-    }
+    }*/
     waitchild(ch){
         return ch.wait(1) // TODO: implement water distance properly
     }

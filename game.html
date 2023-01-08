@@ -9,8 +9,8 @@
 /*canvas{
     scale: 0.5;
 }*/
-#sparecanvas{
-    display: none;
+.offscreen{
+    /*display: none;*/
 }
 
 /*
@@ -50,18 +50,44 @@ div#buttons{
     </div>
 </div>
 
-<canvas id="sparecanvas" width="500" height="500">
+<canvas class="offscreen" id="sparecanvas" width="500" height="500">
 </canvas>
+<div id="smallcanvases"><!--for drawing different layers-->
+    <canvas class="offscreen" width="100" height="100"></canvas>
+    <canvas class="offscreen" width="100" height="100"></canvas>
+    <canvas class="offscreen" width="100" height="100"></canvas>
+    <canvas class="offscreen" width="100" height="100"></canvas>
+    <canvas class="offscreen" width="100" height="100"></canvas>
+    <canvas class="offscreen" width="100" height="100"></canvas>
+    <canvas class="offscreen" width="100" height="100"></canvas>
+    <canvas class="offscreen" width="100" height="100"></canvas>
+    <canvas class="offscreen" width="100" height="100"></canvas>
+    <canvas class="offscreen" width="100" height="100"></canvas>
+    <canvas class="offscreen" width="100" height="100"></canvas>
+    <canvas class="offscreen" width="100" height="100"></canvas>
+</div>
 <script type="text/javascript">
 "use strict";
 
 let sparectx = sparecanvas.getContext("2d")
+smallcanvases.children
+
+let smallctxs = []
+for(let c of smallcanvases.children){
+    smallctxs.push(c.getContext("2d"))
+}
 //drawPlant(sparectx)
 
 let ctx = gamecanvas.getContext("2d")
+/*ctx.fillStyle="brown"
+ctx.fillRect(10,10,980,980)
+let r = (Math.random()*1000)|0
+console.log(r)
+drawPlant(ctx,mkrng(r))*/
 init()
 redraw()
 gamecanvas.addEventListener("click",click)
+
 </script>
 </body>
 </html>

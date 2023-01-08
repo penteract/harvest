@@ -15,7 +15,7 @@ var hints = [
     "Plants don't grow as well in rocky soil "
 ]
 
-const costFactor = 3;
+const costFactor = 0.3;
 const expandCosts = {}// cost to reach depth n
 expandCosts[10] = costFactor*PLOTSZ*PLOTSZ;
 expandCosts[9] = expandCosts[10]*FARMSZ*FARMSZ;
@@ -35,6 +35,7 @@ function redraw(depth){
         cursor = cursor.getChildren()[pLocation[cursor.depth+1] ]
     }
     cursors[cursor.depth] = cursor;
+    copybut.disabled = cursor.depth>=11;
     zoomoutbut.disabled = cursor.depth<=minDepth;
     zoominbut.disabled = cursor.depth>=11;
     pastebut.disabled = saves[cursor.depth]===undefined || seeds<saves[cursor.depth].countPlants(cursor)
@@ -46,6 +47,18 @@ function redraw(depth){
     numseeds.innerHTML = seeds+""
     hint.innerHTML = "Hint: "+hints[tutorial]
     cursor.draw(ctx);
+}
+
+function skipTutorial(){
+    tutorial+=8
+    waitbut.style.visibility="visible"
+    copybut.style.visibility="visible"
+    zoomoutbut.style.visibility="visible"
+    harvestbut.style.visibility="visible"
+    zoominbut.style.visibility="visible"
+    expandbut.style.visibility="visible"
+    seeds+=1000n
+
 }
 
 var atime = 200
@@ -179,6 +192,7 @@ function harvest(){
 function expand(){
     if(animating) return;
     if(seeds<BigInt(expandCosts[nextUnlockDepth])) return;
+    seeds -= BigInt(expandCosts[nextUnlockDepth])
     if (tutorial==8){
         tutorial+=1
     }
@@ -188,8 +202,9 @@ function expand(){
     }
     if(nextUnlockDepth==minDepth)minDepth-=1
     nextUnlockLocation+=1
-    if (nextUnlockLocation > cursors[nextUnlockDepth-1].layerSize){
+    if (nextUnlockLocation >= cursors[nextUnlockDepth-1].layerSize){
         nextUnlockLocation = 1
+        nextUnlockDepth-=1
     }
     redraw(minDepth)
 }

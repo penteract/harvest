@@ -616,21 +616,19 @@ class Planet extends Map{
         let nFace = pLocation[cursor.depth+1]
         let frots = fRotations[nFace].map(x=>x*t)
         let cb = newCube(frots)
+        let srt = cb.map((e,k)=>[e[2],k])
+        srt.sort((a,b)=>b[0]-a[0])
+        let front = srt[0][1]
+        for(let f =0;f<6;f++){
+            let crs = cornersOfFace[f];
+            if(front==crs[0] || front==crs[1] || front==crs[2] || front==crs[1]+crs[2]-crs[0]){
+                ctx.save()
+                ctx.transform(...faceMatrix(crs,cb, sz))
+                await this.getChildren()[f].draw(ctx,this,0)
+                ctx.restore()
 
-        ctx.save()
-        ctx.transform(...faceMatrix(cornersOfFace[0],cb, sz))
-        await this.getChildren()[0].draw(ctx,this,0)
-        ctx.restore()
-
-        ctx.save()
-        ctx.transform(...faceMatrix(cornersOfFace[1],cb, sz))
-        await this.getChildren()[1].draw(ctx,this,1)
-        ctx.restore()
-
-        ctx.save()
-        ctx.transform(...faceMatrix(cornersOfFace[2],cb, sz))
-        await this.getChildren()[2].draw(ctx,this,2)
-        ctx.restore()
+            }
+        }
         ctx.restore()
     }
     getLocation(x,y){
@@ -638,7 +636,7 @@ class Planet extends Map{
         y-=0.5
         let seg = (Math.atan2(x,y)*3/Math.PI + 6)|0
         let pos;
-        if(Math.sqrt(x*x+y*y)>0.41 ) pos =  3 + ((((5+seg)%6)/2) |0);
+        if(Math.sqrt(x*x+y*y)>0.4) pos =  3 + ((((5+seg)%6)/2) |0); // a hexagon is roughly a circle?
         else pos = (((13-seg)%6)/2) |0 ;
         if(nextUnlockDepth==this.depth+1 && nextUnlockLocation<=pos) return undefined;
         return pos

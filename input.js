@@ -11,9 +11,9 @@ var hints = [
     "You can click to zoom in on other plants",
     "Spread the plants out to improve growth rate",
     "Record a whole plot to speed up planting next time",
-    "Middle clicking is a faster way to plnt things",
+    "Middle clicking is a faster way to plant things",
     "Save up to buy another plot",
-    "Plants don't grow as quickly in rocky soil ",
+    "Plants don't grow as well in rocky soil ",
     "Being nearer to water helps plants grow",
     "You can now terraform to move large amounts of earth from one farm to another",
     "Recording a region includes the terraforming state, so be careful when clicking 'plant'"
@@ -87,7 +87,7 @@ function skipTutorial(){
     nextUnlockDepth-=3
 }
 
-var atime = 200
+let atime = 500
 
 function zoomOut(){
     if(animating) return;
@@ -147,8 +147,8 @@ function zoomIn(){
 }
 function tfm(){
     terraforming=!terraforming
-    seeds -= BigInt(terraformcost)
     if(terraforming){
+        seeds -= BigInt(terraformcost)
         setTerraformMsg("Click on a farm to move earth from it")
     }
     else{
@@ -181,7 +181,7 @@ function mouseup(e){
 
 function click(e,loc){
     if(terraforming){
-        if(e.button!=1) {
+        if(e.button!=0) {
             setTerraformMsg("Can't plant while terraforming")
             return;
         }
@@ -320,7 +320,7 @@ async function expand(){
     if (tutorial==9 && minDepth<9){
         tutorial+=1
     }
-    if (tutorial==10 && minDepth<10){
+    if (tutorial==10 && nextUnlockDepth<9){
         terraformbut.style.visibility="visible" 
         tutorial+=1
     }

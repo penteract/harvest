@@ -94,6 +94,8 @@ function init(reallyRandom){
     recentlyterraformed= false
 }
 
+const dummycanvas = {canvas:{},drawImage:(()=>{}), fillRect:(()=>{})}
+
 var LAYERS;
 class Map{
     layerSize=1
@@ -173,6 +175,11 @@ class Map{
             }
         }
         return this.harvested
+    }
+    async prepare(){
+        for(let k in this.getChildren()){
+            await this.getChildren()[k].draw(dummycanvas,this,k)
+        }
     }
     async draw(ctx,parent,k){
         let sz = ctx.canvas.width
@@ -259,6 +266,9 @@ class Plant extends Map{
             ctx.fillStyle = "green"
             //ctx.fillRect(sz/10,sz/10,sz*8/10,sz*8/10)
         }
+    }
+    mkChildren(){
+        return {}
     }
     countPlants(){
         return BigInt(this.planted)
@@ -549,6 +559,12 @@ class Region extends Map{
         this.wdists=wdists
 
     }
+    async drawToSave(ctx,...args){
+        let sz = ctx.canvas.width
+        ctx.fillStyle="white"
+        ctx.fillRect(0,0,sz,sz)
+        await super.drawToSave(ctx,...args)
+    }
     /*draw(ctx){
         sz = ctx.canvas.width
         ctx.fillStyle = "green"
@@ -585,6 +601,8 @@ class Planet extends Map{
     }
     async drawToSave(ctx,parent,k){
         let sz = ctx.canvas.width
+        ctx.fillStyle="black"
+        ctx.fillRect(0,0,sz,sz)
         ctx.save()
         ctx.translate(sz/2,sz/2)
         ctx.scale(0.5,0.5)
@@ -607,6 +625,8 @@ class Planet extends Map{
     }
     async drawZoomed(t, ctx){
         let sz = ctx.canvas.width
+        ctx.fillStyle="black"
+        ctx.fillRect(0,0,sz,sz)
 
         let scale = Math.pow(0.5, 1-t)
         ctx.save()

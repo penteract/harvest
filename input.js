@@ -11,15 +11,17 @@ var hints = [
     "You can click to zoom in on other plants",
     "Spread the plants out to improve growth rate",
     "Record a whole plot to speed up planting next time",
-    "Middle clicking is a faster way to plant things",
+    "Middle clicking can be easier than zooming in to plant",
     "Save up to buy another plot",
     "Plants don't grow as well in rocky soil ",
-    "Being nearer to water helps plants grow",
+    "Being nearer to water helps plants grow",//10
     "You can now terraform to move large amounts of earth from one farm to another",
-    "Recording a region includes the terraforming state, so be careful when clicking 'plant'"
+    "Recording a region includes the terraforming state, so be careful when clicking 'plant'",
+    "Click outside the planet to see the hidden faces",
+    ""
 ]
 
-const costFactor = 0.3;
+const costFactor = 1;
 const expandCosts = {}// cost to reach depth n
 expandCosts[10] = costFactor*PLOTSZ*PLOTSZ;
 expandCosts[9] = expandCosts[10]*FARMSZ*FARMSZ;
@@ -66,7 +68,8 @@ function redraw(depth){
     numseeds.innerHTML = seeds+""
     hint.innerHTML = "Hint: "+hints[tutorial]
     gamecanvas.width |= 0; // TODO: put this inside the call to draw, after preparation
-    return cursor.draw(ctx);
+    return cursor.prepare().then(()=>cursor.draw(ctx));
+    //return cursor.draw(ctx)
 }
 
 function setTerraformMsg(msg){
@@ -147,6 +150,9 @@ function zoomIn(){
 }
 function tfm(){
     terraforming=!terraforming
+    if(tutorial==11){
+        tutorial+=1
+    }
     if(terraforming){
         seeds -= BigInt(terraformcost)
         setTerraformMsg("Click on a farm to move earth from it")
@@ -154,14 +160,15 @@ function tfm(){
     else{
         setTerraformMsg("")
     }
-    harvest() // redraws
+    //harvest() // redraws
+    redraw()
 }
 
 let lastDownLocs = {}
 function mousedown(e){
     if (e.button>1) return;
     lastDownLocs[e.button] = undefined
-    if(animating && !(terraforming&&e.button==1)) return;
+    if(animating && !(terraforming&&e.button==0)) return;
     //https://stackoverflow.com/a/19048340/1779797
     let r = gamecanvas.getBoundingClientRect();
     let loc = cursor.getLocation((e.x - r.left) / r.width, (e.y - r.top) / r.width)
@@ -172,7 +179,7 @@ function mouseup(e){
     let downLoc = lastDownLocs[e.button]
     if (downLoc==undefined) return;
     lastDownLocs[e.button] = undefined
-    if(animating && !(terraforming&&e.button==1)) return;
+    if(animating && !(terraforming&&e.button==0)) return;
     let r = gamecanvas.getBoundingClientRect();
     let loc = cursor.getLocation((e.x - r.left) / r.width, (e.y - r.top) / r.width)
     if(loc==downLoc) click(e,loc);
@@ -214,6 +221,7 @@ function click(e,loc){
     if(animating) return;
     if(e.button>1) return;
     if(e.button==1 && loc!==undefined){
+        if (tutorial<7) return;
         if (terraforming || saves[cursor.depth+1]===undefined
               || seeds<saves[cursor.depth+1].countPlants(cursor.getChildren()[loc]))
               return;
@@ -322,6 +330,9 @@ async function expand(){
     }
     if (tutorial==10 && nextUnlockDepth<9){
         terraformbut.style.visibility="visible" 
+        tutorial+=1
+    }
+    if (tutorial==12 && minDepth<8){
         tutorial+=1
     }
     redraw(minDepth)

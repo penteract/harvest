@@ -135,7 +135,7 @@ class Map{
     waitchild(ch,...args){
         return ch.wait(...args)
     }
-    // clone, assume parent will be changed
+    // make a clone (usually so that a part will be mutated)
     clone(){
         let newch = {}
         for(let k in this.getChildren()){
@@ -340,8 +340,9 @@ class Plot extends Map{
 }
 let rPlot
 let sPlot
-const FARMSZ = 10
-const ALTITUDE_FACTOR = 4
+const FARMSZ = 15
+const maxAltitude = 16
+const ALTITUDE_FACTOR = ((FARMSZ*FARMSZ - 2) / maxAltitude) | 0
 class Farm extends Map{
     layerSize=FARMSZ*FARMSZ
     gridsz = FARMSZ
@@ -435,7 +436,7 @@ class Farm extends Map{
         return farms[this.altitude]
     }
 }
-const REGSZ = 12
+const REGSZ = 20
 const NOISESCALE = 4
 class Water extends Map{
     constructor(depth,altitude){
@@ -570,7 +571,6 @@ LAYERS[11] = Plant
 LAYERS[10] = Plot
 LAYERS[9] = Farm
 LAYERS[8] = Region
-const maxAltitude = 16
 let farms; // empty farms at each altitude
 let waters;
 
@@ -637,8 +637,11 @@ class Planet extends Map{
         x-=0.5
         y-=0.5
         let seg = (Math.atan2(x,y)*3/Math.PI + 6)|0
-        if(Math.sqrt(x*x+y*y)>0.5 ) return 3 + ((((5+seg)%6)/2) |0);
-        else return (((7-seg)%6)/2) |0 ;
+        let pos;
+        if(Math.sqrt(x*x+y*y)>0.41 ) pos =  3 + ((((5+seg)%6)/2) |0);
+        else pos = (((13-seg)%6)/2) |0 ;
+        if(nextUnlockDepth==this.depth+1 && nextUnlockLocation<=pos) return undefined;
+        return pos
     }
 }
 LAYERS[7] = Planet

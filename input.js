@@ -11,7 +11,7 @@ var hints = [
     "You can click to zoom in on other plants",
     "Spread the plants out to improve growth rate",
     "Record a whole plot to speed up planting next time",
-    "Save up to buy another plot",
+    "Middle clicking is a faster way to plnt things",
     "Save up to buy another plot",
     "Plants don't grow as quickly in rocky soil ",
     "Being nearer to water helps plants grow",
@@ -25,7 +25,7 @@ expandCosts[10] = costFactor*PLOTSZ*PLOTSZ;
 expandCosts[9] = expandCosts[10]*FARMSZ*FARMSZ;
 expandCosts[8] = expandCosts[9]*REGSZ*REGSZ;
 expandCosts[7] = expandCosts[8]*6;
-const terraformcost = (expandCosts[9]*10)
+const terraformcost = (expandCosts[8]/4)
 
 const expandNames = {}
 expandNames[10] = ["Buy Plot","Buy Plots"]
@@ -60,8 +60,8 @@ function redraw(depth){
     expandbut.innerHTML = expandNames[nextUnlockDepth][numUnlock>1?1:0]
         +" ("+(numUnlock||1n)*BigInt(expandCosts[nextUnlockDepth])+")"
     
-    terraformbut.disabled = animating || cursor.depth!=8 || nextUnlockDepth>8 || (!terraforming && seeds<=terraformcost*2)
-    terraformbut.innerHTML = terraforming?"Stop Terraforming":"Start Terraforming ("+terraformcost*2+")" 
+    terraformbut.disabled = animating || cursor.depth!=8 || nextUnlockDepth>8 || (!terraforming && seeds<=terraformcost)
+    terraformbut.innerHTML = terraforming?"Stop Terraforming":"Start Terraforming ("+terraformcost+")" 
     
     numseeds.innerHTML = seeds+""
     hint.innerHTML = "Hint: "+hints[tutorial]
@@ -85,7 +85,6 @@ function skipTutorial(){
     seeds+=1000n
     minDepth-=3
     nextUnlockDepth-=3
-
 }
 
 var atime = 200
@@ -96,7 +95,7 @@ function zoomOut(){
         tutorial+=1
         waitbut.style.visibility="visible"
     }
-    if (tutorial==5 && cursor.countPlants()>0){
+    if (tutorial==5 && map.countPlants()>0){
         tutorial+=1
         copybut.style.visibility="visible"
     }
@@ -148,6 +147,7 @@ function zoomIn(){
 }
 function tfm(){
     terraforming=!terraforming
+    seeds -= BigInt(terraformcost)
     if(terraforming){
         setTerraformMsg("Click on a farm to move earth from it")
     }
@@ -157,14 +157,34 @@ function tfm(){
     harvest() // redraws
 }
 
-function click(e){
+let lastDownLocs = {}
+function mousedown(e){
+    if (e.button>1) return;
+    lastDownLocs[e.button] = undefined
+    if(animating && !(terraforming&&e.button==1)) return;
+    //https://stackoverflow.com/a/19048340/1779797
+    let r = gamecanvas.getBoundingClientRect();
+    let loc = cursor.getLocation((e.x - r.left) / r.width, (e.y - r.top) / r.width)
+    lastDownLocs[e.button] = loc
+}
+function mouseup(e){
+    if (e.button>1) return;
+    let downLoc = lastDownLocs[e.button]
+    if (downLoc==undefined) return;
+    lastDownLocs[e.button] = undefined
+    if(animating && !(terraforming&&e.button==1)) return;
+    let r = gamecanvas.getBoundingClientRect();
+    let loc = cursor.getLocation((e.x - r.left) / r.width, (e.y - r.top) / r.width)
+    if(loc==downLoc) click(e,loc);
+    
+}
+
+function click(e,loc){
     if(terraforming){
-        if(!animating && seeds<=terraformcost*2) {
-            setTerraformMsg("Not enough seeds")
+        if(e.button!=1) {
+            setTerraformMsg("Can't plant while terraforming")
             return;
         }
-        let r = gamecanvas.getBoundingClientRect();
-        let loc = cursor.getLocation((e.x - r.left) / gamecanvas.width, (e.y - r.top) / gamecanvas.width)
         if(loc!==undefined){
             let farm = cursor.children[loc]
             if(!animating && farm.altitude<=0) {
@@ -175,7 +195,6 @@ function click(e){
                 setTerraformMsg("can't make the selected tile any higher, click another")
                 return;
             }
-            if(!animating){seeds-= BigInt(terraformcost*2)}
             animating=!animating
             pLocation[cursor.depth+1] = loc
             
@@ -193,13 +212,19 @@ function click(e){
     }
 
     if(animating) return;
-    //console.log(e)
-    if(zoominbut.disabled || zoominbut.style.visibility=="hidden" || e.button!=0) return;
-    //https://stackoverflow.com/a/19048340/1779797
-    let r = gamecanvas.getBoundingClientRect();
-    let loc = cursor.getLocation((e.x - r.left) / gamecanvas.width, (e.y - r.top) / gamecanvas.width)
+    if(e.button>1) return;
+    if(e.button==1 && loc!==undefined){
+        if (terraforming || saves[cursor.depth+1]===undefined
+              || seeds<saves[cursor.depth+1].countPlants(cursor.getChildren()[loc]))
+              return;
+        pLocation[cursor.depth+1] = loc
+        cursor=cursor.getChildren()[loc]
+        paste(true)
+        redraw(cursor.depth-1)
+    } 
     //console.log(loc)
-    if (loc!==undefined){
+    if (e.button==0 && loc!==undefined){
+        if (zoominbut.disabled || zoominbut.style.visibility=="hidden") return;
         if (tutorial==4 ){
             tutorial+=1
         }
@@ -215,7 +240,7 @@ function copy(){
     }
     redraw()
 }
-function paste(){
+function paste(dontdraw){
     if(animating) return;
     if (tutorial==0){
         tutorial+=1
@@ -230,7 +255,7 @@ function paste(){
     c.getChildren()
     c.children[pLocation[c.depth+1]] = saves[c.depth+1].pasteover(c.children[pLocation[c.depth+1]])
     //cursor = c.getChildren()[pLocation[c.depth+1] ]
-    redraw()
+    if(!dontdraw)redraw()
 }
 function wait(){
     if(animating) return;

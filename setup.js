@@ -89,6 +89,8 @@ function init(reallyRandom){
     }
     time = 0;
     seeds=1n;
+    animating=false
+    terraforming=false
 }
 
 var LAYERS;
@@ -116,15 +118,18 @@ class Map{
     }
     wait(...args){
         if(this.countPlants()==0)return this
-        if(this.waited===undefined){
+        if(this.results===undefined){
+            this.results={}
+        }
+        if(this.results[args]===undefined){
             if(this.children===undefined) return this;
             let newch = {}
             for(let k in this.children){
                 newch[k] = this.waitchild(this.children[k],...args)
             }
-            this.waited = this.cloneFromChildren(newch) // parent probably gets overwritten
+            this.results[args] = this.cloneFromChildren(newch) // parent probably gets overwritten
         }
-        return this.waited
+        return this.results[args]
     }
     waitchild(ch,...args){
         return ch.wait(...args)
@@ -389,7 +394,7 @@ class Farm extends Map{
         }
         return (seeds - ns)
     }
-    pasteover(other){// TODO: Fix This
+    pasteover(other){
         this.preparePastes()
         let numRocky = this.altitude*ALTITUDE_FACTOR+1
         let numSoil = this.gridsz*this.gridsz - numRocky
@@ -448,8 +453,8 @@ class Water extends Map{
     cloneFromChildren(newch){
         return waters[this.altitude]
     }
-    isZoomable(){
-        return false
+    getLocation(x,y){
+        return undefined
     }
 }
 class Region extends Map{
@@ -549,18 +554,15 @@ class Region extends Map{
     }*/
     wait(){
         if(this.countPlants()==0)return this
-        if(this.waited===undefined){
+        if(this.results===undefined){
             if(this.children===undefined) return this;
             let newch = {}
             for(let k in this.children){
                 newch[k] = this.waitchild(this.children[k],this.wdists[k])
             }
-            this.waited = this.cloneFromChildren(newch) // parent probably gets overwritten
+            this.results = this.cloneFromChildren(newch) // parent probably gets overwritten
         }
-        return this.waited
-    }
-    waitchild(ch,wdist){
-        return ch.wait(wdist)
+        return this.results
     }
 }
 LAYERS[11] = Plant

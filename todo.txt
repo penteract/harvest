@@ -1,14 +1,18 @@
-growing animation?
 
+fix farms/regions with different waterdists
 
 region construction
-terraforming
 
 buying regions
 - cube graphics
 
 properly disallow zooming into oceans
 
+better UI:
+middle click to plant
+scroll to zoom in/out?
+how to terraform?
 nicer graphics (stone, soil and water)
 
 restart button
+growing animation?

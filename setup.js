@@ -574,6 +574,49 @@ const maxAltitude = 16
 let farms; // empty farms at each altitude
 let waters;
 
+class Planet extends Map{
+    layerSize=6
+    mkChildren(){ // this is the only function in which the rng should be used
+        let ch = {}
+        for(let i=0;i<6;i++){
+            ch[i] = this.randomChild()
+        }
+        return ch
+    }
+    async drawToSave(ctx,parent,k){
+        ctx.save()
+        //ctx.scale(0.5,0.5)
+        ctx.transform(...faceMatrix(cornersOfFace[0],cubeCorners, 1000))
+        ctx.scale(0.5,0.5)
+        await this.getChildren()[0].draw(ctx,this,0)
+        ctx.restore()
+        ctx.save()
+        ctx.transform(...faceMatrix(cornersOfFace[1],cubeCorners, 1000))
+        ctx.scale(0.5,0.5)
+        await this.getChildren()[1].draw(ctx,this,1)
+        ctx.restore()
+        ctx.save()
+        ctx.transform(...faceMatrix(cornersOfFace[2],cubeCorners, 1000))
+        ctx.scale(0.5,0.5)
+        await this.getChildren()[2].draw(ctx,this,2)
+        ctx.restore()
+        /*
+        let sz = ctx.canvas.width
+        ctx.save()
+        ctx.scale(1/this.gridsz,1/this.gridsz)
+        let ch = this.getChildren()
+        for(let x=0;x<this.gridsz;x++){
+            for(let y=0;y<this.gridsz;y++){
+                await ch[x+this.gridsz*y].draw(ctx,this, x+this.gridsz*y)
+                ctx.translate(0,sz)
+            }
+            ctx.translate(sz,-this.gridsz*sz)
+        }
+        ctx.restore()*/
+    }
+}
+LAYERS[7] = Planet
+
 /*
 Not worth the effort:
 

@@ -1,17 +1,17 @@
 
-fix farms/regions with different waterdists
-
 region construction
 
 buying regions
 - cube graphics
 
-properly disallow zooming into oceans
+properly disallow zooming into oceans (fixed?)
+
+
 
 better UI:
 middle click to plant
 scroll to zoom in/out?
-how to terraform?
+
 nicer graphics (stone, soil and water)
 
 restart button

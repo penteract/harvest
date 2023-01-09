@@ -91,6 +91,7 @@ function init(reallyRandom){
     seeds=1n;
     animating=false
     terraforming=false
+    recentlyterraformed= false
 }
 
 var LAYERS;

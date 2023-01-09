@@ -2,6 +2,7 @@
 var cursors = new Array(12);
 let animating;
 let terraforming;
+let recentlyterraformed;
 var hints = [
     "Plant something",
     "Zoom out to look at the plot",
@@ -123,6 +124,7 @@ function zoomOut(){
 }
 function zoomIn(){
     if(animating) return;
+    if(cursor.getChildren()[pLocation[cursor.depth+1]]===undefined) return;
     //console.log(cursor,cursor.depth)
     animating=true;
     return new Promise(function(resolve,reject){

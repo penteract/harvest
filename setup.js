@@ -377,7 +377,7 @@ class Farm extends Map{
     countPlants(other){
         if(other===undefined) return super.countPlants();
         this.preparePastes()
-        let numRocky = this.altitude*ALTITUDE_FACTOR+1
+        let numRocky = other.altitude*ALTITUDE_FACTOR+1
         let numSoil = this.gridsz*this.gridsz - numRocky
         if (seeds + other.countPlants() > BigInt(numSoil)*this.pastes["soil"].countPlants()
                       + BigInt(numRocky)*this.pastes["rocky"].countPlants()
@@ -389,7 +389,7 @@ class Farm extends Map{
         let ns = seeds + other.countPlants()
         for(let k=0; k<this.layerSize; k++){
             let pst = this.pastes[other.getChildren()[k].terrain]
-            if(pst.countPlants()<=ns && k<nextUnlockLocation){
+            if(pst.countPlants()<=ns && (nextUnlockDepth<=this.depth || k<nextUnlockLocation)){
                 ns -= pst.countPlants()
             }
         }
@@ -397,7 +397,7 @@ class Farm extends Map{
     }
     pasteover(other){
         this.preparePastes()
-        let numRocky = this.altitude*ALTITUDE_FACTOR+1
+        let numRocky = other.altitude*ALTITUDE_FACTOR+1
         let numSoil = this.gridsz*this.gridsz - numRocky
         if (seeds > BigInt(numSoil)*this.pastes["soil"].countPlants()
                       + BigInt(numRocky)*this.pastes["rocky"].countPlants()
@@ -416,7 +416,7 @@ class Farm extends Map{
         let newCh = {}
         for(let k=0; k<this.layerSize; k++){
             let pst = this.pastes[other.getChildren()[k].terrain]
-            if(pst.countPlants()<=seeds && k<nextUnlockLocation){
+            if(pst.countPlants()<=seeds && (nextUnlockDepth<=this.depth || k<nextUnlockLocation) ){
                 seeds -= pst.countPlants()
                 newCh[k] = pst
             }
@@ -586,8 +586,8 @@ class Planet extends Map{
     async drawToSave(ctx,parent,k){
         let sz = ctx.canvas.width
         ctx.save()
+        ctx.translate(sz/2,sz/2)
         ctx.scale(0.5,0.5)
-        ctx.translate(sz,sz)
 
         ctx.save()
         ctx.transform(...faceMatrix(cornersOfFace[0],cubeCorners, sz))
@@ -607,22 +607,38 @@ class Planet extends Map{
     }
     async drawZoomed(t, ctx){
         let sz = ctx.canvas.width
-        let gridsz = this.gridsz
-        let scale = Math.pow(gridsz, t)
-        ctx.save()
-        //figure out point within target that shouldn't move
-        let n = pLocation[cursor.depth+1]
-        let x = n%gridsz
-        let y = (n/gridsz)|0
-        let mx = x*sz/(gridsz - 1)
-        let my = y*sz / (gridsz-1)
-        ctx.translate(mx,my) // move top left corner of target to top left
-        ctx.scale(scale,scale)
-        ctx.translate(-mx,-my)
 
-        // return
-        await this.draw(ctx)
+        let scale = Math.pow(0.5, 1-t)
+        ctx.save()
+        ctx.translate(sz/2,sz/2)
+        ctx.scale(scale,scale)
+
+        let nFace = pLocation[cursor.depth+1]
+        let frots = fRotations[nFace].map(x=>x*t)
+        let cb = newCube(frots)
+
+        ctx.save()
+        ctx.transform(...faceMatrix(cornersOfFace[0],cb, sz))
+        await this.getChildren()[0].draw(ctx,this,0)
         ctx.restore()
+
+        ctx.save()
+        ctx.transform(...faceMatrix(cornersOfFace[1],cb, sz))
+        await this.getChildren()[1].draw(ctx,this,1)
+        ctx.restore()
+
+        ctx.save()
+        ctx.transform(...faceMatrix(cornersOfFace[2],cb, sz))
+        await this.getChildren()[2].draw(ctx,this,2)
+        ctx.restore()
+        ctx.restore()
+    }
+    getLocation(x,y){
+        x-=0.5
+        y-=0.5
+        let seg = (Math.atan2(x,y)*3/Math.PI + 6)|0
+        if(Math.sqrt(x*x+y*y)>0.5 ) return 3 + ((((5+seg)%6)/2) |0);
+        else return (((7-seg)%6)/2) |0 ;
     }
 }
 LAYERS[7] = Planet

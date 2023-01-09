@@ -47,7 +47,7 @@ const atr2 = Math.atan(Math.SQRT1_2)
 const d45 = Math.PI/4
 // rotations that take the cube to the point where the right face is showing
 // rot x then rot y then rot z
-rotations = {
+const fRotations = {
     0:[-atr2,-d45,0],
     1:[-atr2,d45,0],
     2:[2*d45-atr2,0,d45]

@@ -60,7 +60,7 @@ function redraw(depth){
     expandbut.innerHTML = expandNames[nextUnlockDepth][numUnlock>1?1:0]
         +" ("+(numUnlock||1n)*BigInt(expandCosts[nextUnlockDepth])+")"
     
-    terraformbut.disabled = animating || nextUnlockDepth>8 || (!terraforming && seeds<=terraformcost*2)
+    terraformbut.disabled = animating || cursor.depth!=8 || nextUnlockDepth>8 || (!terraforming && seeds<=terraformcost*2)
     terraformbut.innerHTML = terraforming?"Stop Terraforming":"Start Terraforming ("+terraformcost*2+")" 
     
     numseeds.innerHTML = seeds+""

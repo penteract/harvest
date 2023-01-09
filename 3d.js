@@ -71,5 +71,5 @@ function faceMatrix(face,cb,w){
     let bl = cb[face[2]]
     if(w===undefined)w=1
     w/=2
-    return [(tr[0]-tl[0])/2,(tr[1]-tl[1])/2,  (bl[0]-tl[0])/2,(bl[1]-tl[1])/2,  (tl[0]+1)*w,(tl[1]+1)*w]
+    return [(tr[0]-tl[0])/2,(tr[1]-tl[1])/2,  (bl[0]-tl[0])/2,(bl[1]-tl[1])/2,  tl[0]*w,tl[1]*w]
 }

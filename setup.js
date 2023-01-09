@@ -584,35 +584,45 @@ class Planet extends Map{
         return ch
     }
     async drawToSave(ctx,parent,k){
-        ctx.save()
-        //ctx.scale(0.5,0.5)
-        ctx.transform(...faceMatrix(cornersOfFace[0],cubeCorners, 1000))
-        ctx.scale(0.5,0.5)
-        await this.getChildren()[0].draw(ctx,this,0)
-        ctx.restore()
-        ctx.save()
-        ctx.transform(...faceMatrix(cornersOfFace[1],cubeCorners, 1000))
-        ctx.scale(0.5,0.5)
-        await this.getChildren()[1].draw(ctx,this,1)
-        ctx.restore()
-        ctx.save()
-        ctx.transform(...faceMatrix(cornersOfFace[2],cubeCorners, 1000))
-        ctx.scale(0.5,0.5)
-        await this.getChildren()[2].draw(ctx,this,2)
-        ctx.restore()
-        /*
         let sz = ctx.canvas.width
         ctx.save()
-        ctx.scale(1/this.gridsz,1/this.gridsz)
-        let ch = this.getChildren()
-        for(let x=0;x<this.gridsz;x++){
-            for(let y=0;y<this.gridsz;y++){
-                await ch[x+this.gridsz*y].draw(ctx,this, x+this.gridsz*y)
-                ctx.translate(0,sz)
-            }
-            ctx.translate(sz,-this.gridsz*sz)
-        }
-        ctx.restore()*/
+        ctx.scale(0.5,0.5)
+        ctx.translate(sz,sz)
+
+        ctx.save()
+        ctx.transform(...faceMatrix(cornersOfFace[0],cubeCorners, sz))
+        await this.getChildren()[0].draw(ctx,this,0)
+        ctx.restore()
+
+        ctx.save()
+        ctx.transform(...faceMatrix(cornersOfFace[1],cubeCorners, sz))
+        await this.getChildren()[1].draw(ctx,this,1)
+        ctx.restore()
+
+        ctx.save()
+        ctx.transform(...faceMatrix(cornersOfFace[2],cubeCorners, sz))
+        await this.getChildren()[2].draw(ctx,this,2)
+        ctx.restore()
+        ctx.restore()
+    }
+    async drawZoomed(t, ctx){
+        let sz = ctx.canvas.width
+        let gridsz = this.gridsz
+        let scale = Math.pow(gridsz, t)
+        ctx.save()
+        //figure out point within target that shouldn't move
+        let n = pLocation[cursor.depth+1]
+        let x = n%gridsz
+        let y = (n/gridsz)|0
+        let mx = x*sz/(gridsz - 1)
+        let my = y*sz / (gridsz-1)
+        ctx.translate(mx,my) // move top left corner of target to top left
+        ctx.scale(scale,scale)
+        ctx.translate(-mx,-my)
+
+        // return
+        await this.draw(ctx)
+        ctx.restore()
     }
 }
 LAYERS[7] = Planet
